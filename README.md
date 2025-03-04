@@ -16,3 +16,7 @@ Put in a pause button, that will toggle the game activity
 I got index.html out of it
 
 [index.html](index.html)
+
+### Preview
+
+[Click here to Preview](http://htmlpreview.github.io/?https://github.com/fancellu/grok3-breakout/blob/main/index.html)
