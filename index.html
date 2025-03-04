@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Breakout Game</title>
+  <style>
+    canvas {
+      border: 1px solid black;
+      display: block;
+      margin: 0 auto;
+    }
+    #score, #lives {
+      font-size: 20px;
+      margin: 10px;
+    }
+    #pauseButton {
+      font-size: 20px;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+<div>
+  <span id="score">Score: 0</span>
+  <span id="lives">Lives: 3</span>
+  <button id="pauseButton">Pause</button>
+</div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+  // Get DOM elements
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const scoreElement = document.getElementById('score');
+  const livesElement = document.getElementById('lives');
+  const pauseButton = document.getElementById('pauseButton');
+
+  // Paddle properties
+  const paddleWidth = 100;
+  const paddleHeight = 20;
+  const paddleSpeed = 7;
+  let paddleX = canvas.width / 2;
+
+  // Ball properties
+  const ballRadius = 10;
+  let ballX = canvas.width / 2;
+  let ballY = canvas.height - 30;
+  let dx = 3;  // Ball velocity in x-direction
+  let dy = -3; // Ball velocity in y-direction
+
+  // Brick properties
+  const brickRows = 5;
+  const brickCols = 10;
+  const brickWidth = 70;
+  const brickHeight = 20;
+  const brickPadding = 10;
+  const brickOffsetTop = 30;
+  const brickOffsetLeft = (canvas.width - (brickCols * brickWidth + (brickCols - 1) * brickPadding)) / 2;
+
+  // Colors for brick rows
+  const colors = ['red', 'orange', 'yellow', 'green', 'blue'];
+
+  // Initialize bricks
+  let bricks = [];
+  for (let row = 0; row < brickRows; row++) {
+    bricks[row] = [];
+    for (let col = 0; col < brickCols; col++) {
+      bricks[row][col] = { active: true, color: colors[row] };
+    }
+  }
+
+  // Game state
+  let score = 0;
+  let lives = 3;
+  let activeBricks = brickRows * brickCols;
+  let gameRunning = true;  // Flag to control the game loop
+  let gamePaused = false;  // Flag to control pause state
+
+  // Input control variables
+  let isMouseControl = false;
+  let mouseX = 0;
+  let leftPressed = false;
+  let rightPressed = false;
+
+  // Draw the paddle
+  function drawPaddle() {
+    ctx.fillStyle = 'blue';
+    ctx.fillRect(paddleX - paddleWidth / 2, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+  }
+
+  // Draw the ball
+  function drawBall() {
+    ctx.beginPath();
+    ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    ctx.closePath();
+  }
+
+  // Draw the bricks
+  function drawBricks() {
+    for (let row = 0; row < brickRows; row++) {
+      for (let col = 0; col < brickCols; col++) {
+        if (bricks[row][col].active) {
+          const brickX = col * (brickWidth + brickPadding) + brickOffsetLeft;
+          const brickY = row * (brickHeight + brickPadding) + brickOffsetTop;
+          ctx.fillStyle = bricks[row][col].color;
+          ctx.fillRect(brickX, brickY, brickWidth, brickHeight);
+        }
+      }
+    }
+  }
+
+  // Handle collisions
+  function collisionDetection() {
+    if (!gameRunning || gamePaused) return;  // Stop checking if game is over or paused
+
+    // Wall collisions
+    if (ballX + ballRadius > canvas.width || ballX - ballRadius < 0) {
+      dx = -dx;
+    }
+    if (ballY - ballRadius < 0) {
+      dy = -dy;
+    }
+    if (ballY + ballRadius > canvas.height) {
+      lives--;
+      livesElement.innerText = `Lives: ${lives}`;
+      if (lives > 0) {
+        resetBall();
+      } else if (gameRunning) {  // Only call gameOver once
+        gameRunning = false;
+        gameOver();
+      }
+    }
+
+    // Paddle collision
+    if (dy > 0 && ballY + ballRadius > canvas.height - paddleHeight &&
+      ballX > paddleX - paddleWidth / 2 &&
+      ballX < paddleX + paddleWidth / 2) {
+      dy = -dy;
+    }
+
+    // Brick collisions
+    for (let row = 0; row < brickRows; row++) {
+      for (let col = 0; col < brickCols; col++) {
+        const brick = bricks[row][col];
+        if (brick.active) {
+          const brickX = col * (brickWidth + brickPadding) + brickOffsetLeft;
+          const brickY = row * (brickHeight + brickPadding) + brickOffsetTop;
+          if (ballX > brickX && ballX < brickX + brickWidth &&
+            ballY > brickY && ballY < brickY + brickHeight) {
+            dy = -dy;
+            brick.active = false;
+            score += 10;
+            scoreElement.innerText = `Score: ${score}`;
+            activeBricks--;
+            if (activeBricks <= 0 && gameRunning) {
+              gameRunning = false;
+              youWin();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Reset the ball position
+  function resetBall() {
+    ballX = canvas.width / 2;
+    ballY = canvas.height - 30;
+    dx = 3;
+    dy = -3;
+  }
+
+  // Handle game over
+  function gameOver() {
+    alert('Game Over');
+    document.location.reload();
+  }
+
+  // Handle victory
+  function youWin() {
+    alert('You Win!');
+    document.location.reload();
+  }
+
+  // Main game loop
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBricks();
+    drawBall();
+    drawPaddle();
+
+    if (gameRunning && !gamePaused) {
+      collisionDetection();
+
+      // Paddle movement
+      if (isMouseControl) {
+        paddleX = mouseX;
+      } else {
+        if (leftPressed) {
+          paddleX -= paddleSpeed;
+        }
+        if (rightPressed) {
+          paddleX += paddleSpeed;
+        }
+      }
+
+      // Keep paddle within canvas bounds
+      if (paddleX < paddleWidth / 2) {
+        paddleX = paddleWidth / 2;
+      }
+      if (paddleX > canvas.width - paddleWidth / 2) {
+        paddleX = canvas.width - paddleWidth / 2;
+      }
+
+      // Update ball position
+      ballX += dx;
+      ballY += dy;
+    }
+
+    // Continue the game loop
+    requestAnimationFrame(draw);
+  }
+
+  // Event listeners for mouse control
+  canvas.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = event.clientX - rect.left;
+    isMouseControl = true;
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    isMouseControl = false;
+  });
+
+  // Event listeners for keyboard control
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'a' || event.key === 'A') {
+      leftPressed = true;
+    } else if (event.key === 'd' || event.key === 'D') {
+      rightPressed = true;
+    }
+  });
+
+  document.addEventListener('keyup', (event) => {
+    if (event.key === 'a' || event.key === 'A') {
+      leftPressed = false;
+    } else if (event.key === 'd' || event.key === 'D') {
+      rightPressed = false;
+    }
+  });
+
+  // Event listener for pause button
+  pauseButton.addEventListener('click', () => {
+    gamePaused = !gamePaused;
+    pauseButton.innerText = gamePaused ? 'Resume' : 'Pause';
+  });
+
+  // Start the game
+  draw();
+</script>
+</body>
+</html>
